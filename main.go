@@ -33,6 +33,27 @@ type BucketTotals struct {
   principal_paid float64
 }
 
+func (running_totals *BucketTotals) resetValues(loan LoanData) {
+  running_totals.principal_current = loan.principal
+  running_totals.fee_current = loan.principal * loan.draw_fee_percent
+  running_totals .interest_current = 0.0
+  running_totals.principal_paid = 0.0
+  running_totals.fee_paid = 0.0
+  running_totals.interest_paid = 0.0
+}
+
+func (running_totals *BucketTotals) computeOverPayment(loan LoanData) float64 {
+  total_paid := running_totals.principal_paid + running_totals.interest_paid + running_totals.fee_paid
+  fmt.Println("what is total_paid", total_paid)
+  total_payments := 0.0
+  for i := 0; i < loan.num_installments; i++ {
+    total_payments += loan.schedule.payments[i]
+  }
+  fmt.Println("what is total_payments", total_payments)
+  return (total_payments - total_paid)
+}
+
+
 func (loan *LoanData) buildSchedule() {
   // weekly, add 7 days, biweekly add 14 days, monthly choose same date each month (logic for when date does not exist + later when it is a weekend)
   switch loan.payment_frequency {
@@ -74,31 +95,67 @@ func (loan *LoanData) computeIntervalPayment(period_length int) {
   fmt.Println("what is the schedule", loan.schedule.payments)
 }
 
-func (loan *LoanData) correctLastPayment() {
+func (loan *LoanData) Solve() float64 {
   running_totals := &BucketTotals{ principal_current: loan.principal, fee_current: loan.principal * loan.draw_fee_percent }
+  var overpayment float64
+  for i := 0; ; i++ {
+    running_totals = loan.simulateLoanLife(running_totals)
+    underpayment := (loan.principal - running_totals.principal_paid)
+    overpayment = running_totals.computeOverPayment(*loan)
+    fmt.Println("what is overpayment: ", overpayment)
+    fmt.Println("what is underpayment: ", underpayment)
+
+    if  overpayment > 0.2 || underpayment > 0.001 {
+      delta := 0.0
+         if underpayment > 0.001 {
+           delta = underpayment / float64(loan.num_installments)
+           fmt.Println("what is underpayment", underpayment)
+          } else {
+            delta = -1*overpayment / float64(loan.num_installments)
+            fmt.Println("what is overpayment, num_installments", overpayment, loan.num_installments)
+          }
+
+      delta = round(delta, 2)
+      fmt.Println("what is delta", delta)
+      for j :=0; j < loan.num_installments; j++ {
+        loan.schedule.payments[j] = round((loan.schedule.payments[j] + delta), 2)
+      }
+    running_totals.resetValues(*loan)
+    } else { break }
+  }
+  return overpayment
+
+}
+
+func (loan *LoanData) simulateLoanLife(running_totals *BucketTotals) *BucketTotals {
+//running_totals := &BucketTotals{ principal_current: loan.principal, fee_current: loan.principal * loan.draw_fee_percent }
   start_year, start_month, start_day := loan.disbursement_date.Date()
   // Start day after disbursement and simulate interest and payments
   for i := 1;; i++ {
     day_offset := start_day + i
     today := time.Date(start_year, start_month, day_offset, 0, 0, 0, 0, time.UTC)
-    fmt.Println("today is", today)
+
     if greaterThanDate(today,loan.schedule.due_dates[loan.num_installments - 1]) {
       break }
     // Compute interest for today
-    running_totals.interest_current += running_totals.principal_current * loan.yearly_interest_rate/365.25
+    interest_today := running_totals.principal_current * loan.yearly_interest_rate/365.25
+    running_totals.interest_current += round(interest_today, 2)
+    fmt.Println("today is", today, round(interest_today, 2))
     // Apply any payments for today
     running_totals.applyAnyPayments(today, loan.schedule)
   }
 
   fmt.Println("what is running_totals", running_totals)
+  return running_totals
 
 }
 
-func (totals *BucketTotals) applyAnyPayments(today time.Time, schedule Schedule) {
+func (totals *BucketTotals) applyAnyPayments(today time.Time, schedule Schedule) float64 {
+  payment_amount := 0.0
   for i := 0; i< len(schedule.due_dates); i ++ {
     if equalDates(today,schedule.due_dates[i]) == true {
-      payment_amount := schedule.payments[i]
-      fmt.Println("there is a payment today", today)
+      payment_amount = schedule.payments[i]
+      fmt.Println("there is a payment today", today, payment_amount)
       if totals.fee_current < payment_amount {
         totals.fee_paid += totals.fee_current
         payment_amount -= totals.fee_current
@@ -129,9 +186,9 @@ func (totals *BucketTotals) applyAnyPayments(today time.Time, schedule Schedule)
     if payment_amount > 0.0 {
       fmt.Println("there was an overpayment of", payment_amount)
     }
-
   }
-}
+  }
+   return payment_amount //This is the overpayment
 }
 
 func equalDates(date1 time.Time, date2 time.Time) bool {
@@ -159,9 +216,10 @@ func greaterThanDate(date1 time.Time, date2 time.Time) bool {
 }
 
 func round(val float64, num_decimals int) float64 {
+  val_sign := val / math.Abs(val)
   val = val*100
-  val = math.Floor(val)
-  return val / 100.0
+  val = math.Floor(math.Abs(val))
+  return val_sign * val / 100.0
 }
 
 
@@ -173,9 +231,16 @@ func main() {
 //year, month, day := start_date.Date()
 //fmt.Println("start date: ", year, month, day)
 //fmt.Println("time now is: ", time.Now())
-  loan := LoanData{ yearly_interest_rate: 0.6, principal: 1000.00, num_installments: 12, payment_frequency: "weekly", start_date: start_date, disbursement_date: disbursement_date, draw_fee_percent: 0.01 }
+  loan := LoanData{ yearly_interest_rate: 0.4, principal: 1000.00, num_installments: 12, payment_frequency: "weekly", start_date: start_date, disbursement_date: disbursement_date, draw_fee_percent: 0.01 }
   loan.buildSchedule()
   loan.computeIntervalPayment(7)
   fmt.Println("what is the schedule in main:", loan.schedule.due_dates)
-  loan.correctLastPayment()
+  overpayment := loan.Solve()
+  fmt.Println("what is the overpayment", overpayment)
+  loan.schedule.payments[loan.num_installments - 1] = round(loan.schedule.payments[loan.num_installments - 1] - overpayment, 2)
+  for i:=0; i < loan.num_installments; i++ {
+    fmt.Println("Payment amounts", loan.schedule.payments[i])
+  }
+
+  
 }
