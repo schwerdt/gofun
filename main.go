@@ -105,7 +105,7 @@ func (loan *LoanData) Solve() float64 {
     fmt.Println("what is overpayment: ", overpayment)
     fmt.Println("what is underpayment: ", underpayment)
 
-    if  overpayment > 0.2 || underpayment > 0.001 {
+    if  overpayment > 0.1 || underpayment > 0.001 {
       delta := 0.0
          if underpayment > 0.001 {
            delta = underpayment / float64(loan.num_installments)
@@ -116,6 +116,8 @@ func (loan *LoanData) Solve() float64 {
           }
 
       delta = round(delta, 2)
+      if delta == 0.0 {
+        delta += 0.01 }
       fmt.Println("what is delta", delta)
       for j :=0; j < loan.num_installments; j++ {
         loan.schedule.payments[j] = round((loan.schedule.payments[j] + delta), 2)
@@ -139,7 +141,7 @@ func (loan *LoanData) simulateLoanLife(running_totals *BucketTotals) *BucketTota
       break }
     // Compute interest for today
     interest_today := running_totals.principal_current * loan.yearly_interest_rate/365.25
-    running_totals.interest_current += round(interest_today, 2)
+    running_totals.interest_current += roundDown(interest_today, 2)
     fmt.Println("today is", today, round(interest_today, 2))
     // Apply any payments for today
     running_totals.applyAnyPayments(today, loan.schedule)
@@ -183,9 +185,6 @@ func (totals *BucketTotals) applyAnyPayments(today time.Time, schedule Schedule)
        totals.principal_current -= payment_amount
        payment_amount = 0.0
     }
-    if payment_amount > 0.0 {
-      fmt.Println("there was an overpayment of", payment_amount)
-    }
   }
   }
    return payment_amount //This is the overpayment
@@ -216,10 +215,32 @@ func greaterThanDate(date1 time.Time, date2 time.Time) bool {
 }
 
 func round(val float64, num_decimals int) float64 {
-  val_sign := val / math.Abs(val)
-  val = val*100
-  val = math.Floor(math.Abs(val))
-  return val_sign * val / 100.0
+
+//val_sign := val / math.Abs(val)
+//val = val*100
+//val = math.Floor(math.Abs(val))
+//fmt.Println("what is floored value", val)
+//return val_sign * val / 100.0
+  if val < 0.0 {
+    val -= 0.005
+    val = val * 100.0
+    val = math.Ceil(val)
+    val = val / 100.0
+  } else {
+    val += 0.005
+    val = val * 100.0
+    val = math.Floor(val)
+    val = val / 100.0
+   }
+  return val
+
+}
+
+func roundDown(val float64, num_decimals int) float64 {
+  val += 0.001  //Just to deal with precision 0.019999999
+  val = math.Floor(100*val)
+  val = val / 100.0
+  return val
 }
 
 
@@ -231,7 +252,7 @@ func main() {
 //year, month, day := start_date.Date()
 //fmt.Println("start date: ", year, month, day)
 //fmt.Println("time now is: ", time.Now())
-  loan := LoanData{ yearly_interest_rate: 0.4, principal: 1000.00, num_installments: 12, payment_frequency: "weekly", start_date: start_date, disbursement_date: disbursement_date, draw_fee_percent: 0.01 }
+  loan := LoanData{ yearly_interest_rate: 0.5, principal: 2000.00, num_installments: 12, payment_frequency: "weekly", start_date: start_date, disbursement_date: disbursement_date, draw_fee_percent: 0.01 }
   loan.buildSchedule()
   loan.computeIntervalPayment(7)
   fmt.Println("what is the schedule in main:", loan.schedule.due_dates)
