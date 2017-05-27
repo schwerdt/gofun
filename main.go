@@ -105,7 +105,7 @@ func (loan *LoanData) Solve() float64 {
     fmt.Println("what is overpayment: ", overpayment)
     fmt.Println("what is underpayment: ", underpayment)
 
-    if  overpayment > 0.1 || underpayment > 0.001 {
+    if  overpayment > 0.5 || underpayment > 0.001 {
       delta := 0.0
          if underpayment > 0.001 {
            delta = underpayment / float64(loan.num_installments)
@@ -252,7 +252,7 @@ func main() {
 //year, month, day := start_date.Date()
 //fmt.Println("start date: ", year, month, day)
 //fmt.Println("time now is: ", time.Now())
-  loan := LoanData{ yearly_interest_rate: 0.5, principal: 2000.00, num_installments: 12, payment_frequency: "weekly", start_date: start_date, disbursement_date: disbursement_date, draw_fee_percent: 0.01 }
+  loan := LoanData{ yearly_interest_rate: 0.5, principal: 2000.00, num_installments: 26, payment_frequency: "biweekly", start_date: start_date, disbursement_date: disbursement_date, draw_fee_percent: 0.01 }
   loan.buildSchedule()
   loan.computeIntervalPayment(7)
   fmt.Println("what is the schedule in main:", loan.schedule.due_dates)
