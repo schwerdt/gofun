@@ -81,8 +81,6 @@ func (loan *Loan) approximatePayment(period_length int) {
 
 func (loan *Loan) solve() float64 {
   running_totals := &bucket_totals.BucketTotals{ Principal_current: loan.Principal, Fee_current: loan.Principal * loan.Draw_fee_percent }
-//running_totals := &bucket_totals.BucketTotals{}
-//running_totals.ResetValues(loan.principal, loan.draw_fee_percent)
   var overpayment float64
   for i := 0; ; i++ {
     running_totals = loan.simulateLoanLife(running_totals)
@@ -145,12 +143,6 @@ func (loan *Loan) CalculatePaymentSchedule() {
 
 
 func round(val float64, num_decimals int) float64 {
-
-//val_sign := val / math.Abs(val)
-//val = val*100
-//val = math.Floor(math.Abs(val))
-//fmt.Println("what is floored value", val)
-//return val_sign * val / 100.0
   if val < 0.0 {
     val -= 0.005
     val = val * 100.0
@@ -167,7 +159,7 @@ func round(val float64, num_decimals int) float64 {
 }
 
 func roundDown(val float64, num_decimals int) float64 {
-  val += 0.001  //Just to deal with precision 0.019999999
+  val += 0.001  //Just to deal with precision 0.019999999.  Is there a better way to do this?
   val = math.Floor(100*val)
   val = val / 100.0
   return val
