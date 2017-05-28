@@ -14,6 +14,7 @@ type Loan struct {
   Disbursement_date time.Time
   Num_installments int
   Payment_frequency string
+  Day_of_month int
   Start_date time.Time
   Schedule Schedule
 }
@@ -27,10 +28,10 @@ func (loan *Loan) estimateSchedule() {
   // weekly, add 7 days, biweekly add 14 days, monthly choose same date each month (logic for when date does not exist + later when it is a weekend)
   switch loan.Payment_frequency {
   case "weekly":
-    loan.buildScheduleDueDatesNDays(loan.Start_date, loan.Num_installments, 7)
+    loan.buildScheduleDueDatesNDays(7)
     loan.approximatePayment(7)
   case "biweekly":
-    loan.buildScheduleDueDatesNDays(loan.Start_date, loan.Num_installments, 14)
+    loan.buildScheduleDueDatesNDays(14)
     loan.approximatePayment(14)
   case "monthly":
     loan.buildScheduleMonthlyDueDates()
@@ -39,13 +40,24 @@ func (loan *Loan) estimateSchedule() {
 }
 
 func (loan *Loan) buildScheduleMonthlyDueDates() {
+  due_dates := make([]time.Time, loan.Num_installments)
+  year, month, _ := loan.Start_date.Date()
+  //Move one month ahead
+  month += 1
+  for i := 0; i< loan.Num_installments ; i++ {
+    due_date := time.Date(year, month, loan.Day_of_month, 0, 0, 0, 0, time.UTC)
+    due_dates[i] = due_date
+    month += 1
+  }
+  loan.Schedule = Schedule{ Due_dates: due_dates }
+  fmt.Println("what are the due_dates", due_dates)
 }
 
-func (loan *Loan) buildScheduleDueDatesNDays(start_date time.Time, num_installments int, date_interval int) {
-  due_dates := make([]time.Time, num_installments)
-  year, month, day := start_date.Date()
+func (loan *Loan) buildScheduleDueDatesNDays(date_interval int) {
+  due_dates := make([]time.Time, loan.Num_installments)
+  year, month, day := loan.Start_date.Date()
 
-  for i := 0; i < num_installments; i++ {
+  for i := 0; i < loan.Num_installments; i++ {
     end_day := day + i * date_interval
     due_dates[i] = time.Date(year, month, end_day, 0, 0 ,0 ,0, time.UTC)
   }
