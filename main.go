@@ -3,27 +3,63 @@ package main
 import(
   "fmt"
   "time"
+  "io/ioutil"
+  "strings"
+  "strconv"
 
   "github.com/schwerdt/gofun/loan"
 )
 
 //Build amortizer that takes in principal, annual interest rate, number of payments, frequency of payments (dates or should we generate this?)
+func buildDate(date string) time.Time {
+  new_date, _ := time.Parse("2006-01-02", date)
+  fmt.Println("what is the date", new_date)
+  return new_date
+}
+
+
+func buildLoanFromInputs(filename string) loan.Loan {
+  var day_of_month int
+  file_data, err := ioutil.ReadFile(filename)
+  if err != nil {
+    fmt.Println("File was not found", err) }
+
+  input_data := strings.Split(string(file_data), "\n")
+  input_map := make(map[string]string)
+
+  for i :=0; i < len(input_data) - 1; i++ {
+    pair := strings.Split(input_data[i], ":")
+    key := strings.Replace(pair[0], " ", "", -1)
+    value := strings.Replace(pair[1], " ", "", -1)
+    input_map[key] = value
+  }
+
+  interest_rate, _ := strconv.ParseFloat(input_map["interest_rate"], 64)
+  principal, _ := strconv.ParseFloat(input_map["principal"], 64)
+  num_installments, _ := strconv.Atoi(input_map["num_installments"])
+  disbursement_date := buildDate(input_map["disbursement_date"])
+  draw_fee_percent, _ := strconv.ParseFloat(input_map["draw_fee_percent"], 64)
+  start_date := buildDate(input_map["start_date"])
+  if day_of_month_string, ok := input_map["day_of_month"]; ok {
+    day_of_month, _ = strconv.Atoi(day_of_month_string)
+   }
+  fmt.Println("what is day of month", day_of_month)
+  return loan.Loan{ Yearly_interest_rate: interest_rate,
+                    Principal: principal,
+                    Num_installments: num_installments,
+                    Payment_frequency: input_map["payment_frequency"],
+                    Disbursement_date: disbursement_date,
+                    Draw_fee_percent: draw_fee_percent,
+                    Start_date: start_date,
+                    Day_of_month: day_of_month }
+
+
+}
+
+
 
 func main() {
-  start_date := time.Date(2017, time.May, 23, 0, 0, 0, 0,time.UTC)
-  disbursement_date := time.Date(2017, time.May, 18, 0, 0, 0, 0, time.UTC)
-//test_date := time.Date(2017, time.May, 35, 0,0, 0, 0, time.UTC)
-//fmt.Println("what is test_date", test_date)
-//year, month, day := start_date.Date()
-//fmt.Println("start date: ", year, month, day)
-//fmt.Println("time now is: ", time.Now())
-  loan := loan.Loan{ Yearly_interest_rate: 0.5, Principal: 2000.00, Num_installments: 12, Payment_frequency: "monthly", Day_of_month: 30, Start_date: start_date, Disbursement_date: disbursement_date, Draw_fee_percent: 0.01 }
-//loan.buildSchedule()
-//loan.computeIntervalPayment(7)
-//fmt.Println("what is the schedule in main:", loan.schedule.due_dates)
-//overpayment := loan.Solve()
-//fmt.Println("what is the overpayment", overpayment)
-//loan.schedule.payments[loan.num_installments - 1] = round(loan.schedule.payments[loan.num_installments - 1] - overpayment, 2)
+  loan := buildLoanFromInputs("loan_data.txt")
   loan.CalculatePaymentSchedule()
   for i:=0; i < loan.Num_installments; i++ {
     fmt.Println("Payment amounts", loan.Schedule.Payments[i])

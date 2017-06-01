@@ -1,0 +1,7 @@
+principal: 2000.0
+interest_rate: 0.5
+draw_fee_percent: 0.02
+num_installments: 12
+payment_frequency: weekly
+disbursement_date: 2017-06-01
+start_date: 2017-06-20

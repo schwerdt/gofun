@@ -76,7 +76,6 @@ func (loan *Loan) approximatePayment(period_length int) {
   for i :=0; i< len(payment_array); i++ {
     payment_array[i] = payment_amount }
   loan.Schedule.Payments = payment_array
-  fmt.Println("what is the schedule", loan.Schedule.Payments)
 }
 
 func (loan *Loan) solve() float64 {
@@ -93,10 +92,8 @@ func (loan *Loan) solve() float64 {
       delta := 0.0
          if underpayment > 0.001 {
            delta = underpayment / float64(loan.Num_installments)
-           fmt.Println("what is underpayment", underpayment)
           } else {
             delta = -1*overpayment / float64(loan.Num_installments)
-            fmt.Println("what is overpayment, num_installments", overpayment, loan.Num_installments)
           }
 
       delta = round(delta, 2)
